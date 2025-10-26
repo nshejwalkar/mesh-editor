@@ -144,11 +144,10 @@ void MyGL::paintGL()
     m_progLambert.setUnifVec3("u_CamPos", m_camera.eye);
     m_progFlat.setUnifMat4("u_Model", glm::mat4(1.f));
 
-    // if (!m_mesh) {
-    //     std::cout << "aaaaaah" <<std::endl;
-    //     return;
-    // }
-    // m_progFlat.draw(*m_mesh);
+    if (m_mesh && m_mesh->getIndexBufferLength() > 0) {  // only display if set
+        m_progFlat.draw(*m_mesh);
+        return;
+    }
 
     //Create a model matrix. This one rotates the square by PI/4 radians then translates it by <-2,0,0>.
     //Note that we have to transpose the model matrix before passing it to the shader

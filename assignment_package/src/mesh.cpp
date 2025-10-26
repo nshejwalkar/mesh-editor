@@ -1,7 +1,6 @@
 #include "mesh.h"
 #include "meshcomponents.h"
 #include <stdlib.h>
-#include <iostream>
 
 Mesh::Mesh(OpenGLContext* context)
     : Drawable(context)
@@ -9,13 +8,11 @@ Mesh::Mesh(OpenGLContext* context)
 
 // passed in from MyGL::loadOBJ
 void Mesh::buildMesh(const std::vector<glm::vec3>& positions, const std::vector<std::vector<int>>& faceIndices) {
-    std::cout << "building mesh" << std::endl;
     // reset the mesh
     this->vertices.clear();
     this->faces.clear();
     this->edges.clear();
 
-    std::cout << "verts" << std::endl;
     // first fill out the vertices
     for (const glm::vec3& pos : positions) {
         auto v = std::make_unique<Vertex>(pos);
@@ -25,11 +22,8 @@ void Mesh::buildMesh(const std::vector<glm::vec3>& positions, const std::vector<
     std::map<std::pair<int,int>, HalfEdge*> vertsToEdge;  // stores <source, dest> vertex : halfedge to make setting syms easy
     std::map<HalfEdge*, std::pair<int,int>> edgeToVerts;  // opposite
 
-    std::cout << "faces" << std::endl;
-    int i=0;
     // next, go through the faceIndices and fill out faces and edges
     for (const auto& indices : faceIndices) {  // each indices is a vector of size n, the number of edges on that face
-        std::cout << i << std::endl;
         const int n = indices.size();
 
         auto f = std::make_unique<Face>();
@@ -59,11 +53,9 @@ void Mesh::buildMesh(const std::vector<glm::vec3>& positions, const std::vector<
             vertsToEdge[{source_vert_idx, dest_vert_idx}] = he;  // set vertices
             edgeToVerts[he] = {source_vert_idx, dest_vert_idx};
         }
-        i++;
         this->faces.push_back(std::move(f));
     }
 
-    std::cout << "syms" << std::endl;
     // now point the syms
     for (auto& heUptr : this->edges) {
         HalfEdge* he = heUptr.get();
@@ -101,18 +93,13 @@ void Mesh::initializeAndBufferGeometryData() {
     }
 
     // use the functions in drawable
-    std::cout<< "pos" << std::endl;
     generateBuffer(BufferType::POSITION);
     bindBuffer(BufferType::POSITION);
     bufferData(BufferType::POSITION, pos);
 
-    std::cout<< "col" << std::endl;
-
     generateBuffer(BufferType::COLOR);
     bindBuffer(BufferType::COLOR);
     bufferData(BufferType::COLOR, col);
-
-    std::cout<< "idx" << std::endl;
 
     generateBuffer(BufferType::INDEX);
     bindBuffer(BufferType::INDEX);
