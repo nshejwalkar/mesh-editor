@@ -1,0 +1,9 @@
+6:42pm: Looked up how to integrate qfiledialog and related libraries
+https://www.youtube.com/watch?v=Wp8XJIftsFY
+https://forum.qt.io/topic/19867/what-is-tr-function
+
+6:57pm: Ran into errors about initializing static variable
+https://stackoverflow.com/questions/5019856/initialize-static-variables-in-c-class
+
+7:55pm: found an easy way to parse strings
+https://www.geeksforgeeks.org/cpp/processing-strings-using-stdistringstream/
