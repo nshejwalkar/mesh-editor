@@ -5,6 +5,7 @@ SOURCES += \
     $$PWD/main.cpp \
     $$PWD/mainwindow.cpp \
     $$PWD/mesh.cpp \
+    $$PWD/meshcomponentdisplays.cpp \
     $$PWD/meshcomponents.cpp \
     $$PWD/mygl.cpp \
     $$PWD/shaderprogram.cpp \
@@ -19,6 +20,7 @@ HEADERS += \
     $$PWD/la.h \
     $$PWD/mainwindow.h \
     $$PWD/mesh.h \
+    $$PWD/meshcomponentdisplays.h \
     $$PWD/meshcomponents.h \
     $$PWD/mygl.h \
     $$PWD/shaderprogram.h \

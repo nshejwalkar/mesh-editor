@@ -11,6 +11,7 @@
 #include <QOpenGLShaderProgram>
 #include <QTimer>
 #include <mesh.h>
+#include "meshcomponentdisplays.h"
 
 
 class MyGL
@@ -49,6 +50,15 @@ public:
     void resizeGL(int w, int h);
     void paintGL();
     void loadOBJ(const QString& path);
+
+    // called by mainwindow
+    void selectVertex(Vertex* v);
+    void selectHalfEdge(HalfEdge* he);
+    void selectFace(Face* f);
+
+    VertexDisplay m_vertDisplay;
+    FaceDisplay m_faceDisplay;
+    HalfEdgeDisplay m_edgeDisplay;
 
 protected:
     void keyPressEvent(QKeyEvent *e);

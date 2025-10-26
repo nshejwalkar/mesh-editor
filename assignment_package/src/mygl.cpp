@@ -15,7 +15,10 @@ MyGL::MyGL(QWidget *parent)
       m_progLambert(this), m_progFlat(this),
       vao(),
       m_camera(width(), height()),
-      m_mousePosPrev()
+      m_mousePosPrev(),
+      m_vertDisplay(this),
+      m_faceDisplay(this),
+      m_edgeDisplay(this)
 {
     setFocusPolicy(Qt::StrongFocus);
 
@@ -32,8 +35,25 @@ MyGL::~MyGL()
     glDeleteVertexArrays(1, &vao);
 }
 
+void MyGL::selectVertex(Vertex* v) {
+    m_selectedVertex = v;
+    m_vertDisplay.updateVertex(v);
+    update();
+}
+
+void MyGL::selectFace(Face* f) {
+    m_selectedFace = f;
+    m_faceDisplay.updateFace(f);
+    update();
+}
+
+void MyGL::selectHalfEdge(HalfEdge* he) {
+    m_selectedHalfEdge = he;
+    m_edgeDisplay.updateHalfEdge(he);
+    update();
+}
+
 void MyGL::loadOBJ(const QString& path) {
-    std::cout << "loading " << std::endl;
     std::ifstream objfile(path.toStdString());
     if (!objfile.is_open()) {std::cout << "Unable to open file"; return;}
 
@@ -47,13 +67,11 @@ void MyGL::loadOBJ(const QString& path) {
         iss >> first;  // streams until whitespace, so will get the first word (v, f, vn, etc)
 
         if (first == "v") {
-            std::cout << "vertex line " << std::endl;
             float x, y, z;
             iss >> x >> y >> z;
             positions.push_back(glm::vec3(x,y,z));
         }
         else if (first == "f") {
-            std::cout << "face line " << std::endl;
             std::vector<int> verts;
             std::string vertexStr;
             while (iss >> vertexStr) {  // get just one string of pos/uv/normal
@@ -67,7 +85,6 @@ void MyGL::loadOBJ(const QString& path) {
         }
         else continue;
     }
-    std::cout << positions.size() << " vertices, " << faceIndices.size() << " faces" << std::endl;
 
     // now build the m_mesh object
     m_mesh->buildMesh(positions, faceIndices);
