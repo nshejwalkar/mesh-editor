@@ -14,7 +14,7 @@ Drawable::~Drawable()
 void Drawable::destroyGPUData() {
     for(auto &kvp : bufferHandles) {
         glContext->glDeleteBuffers(1, &kvp.second);
-    }
+}
     indexBufferLength = 0;
 }
 

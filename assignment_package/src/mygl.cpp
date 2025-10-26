@@ -1,9 +1,11 @@
 #include "mygl.h"
 #include <la.h>
 
-#include <iostream>
 #include <QApplication>
 #include <QKeyEvent>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 
 MyGL::MyGL(QWidget *parent)
@@ -17,6 +19,8 @@ MyGL::MyGL(QWidget *parent)
 {
     setFocusPolicy(Qt::StrongFocus);
 
+    m_mesh = std::make_unique<Mesh>(this);  // create the mesh object
+
     connect(&timer, SIGNAL(timeout()), this, SLOT(tick()));
     // Tell the timer to redraw 60 times per second
     timer.start(16);
@@ -26,6 +30,52 @@ MyGL::~MyGL()
 {
     makeCurrent();
     glDeleteVertexArrays(1, &vao);
+}
+
+void MyGL::loadOBJ(const QString& path) {
+    std::cout << "loading " << std::endl;
+    std::ifstream objfile(path.toStdString());
+    if (!objfile.is_open()) {std::cout << "Unable to open file"; return;}
+
+    std::vector<glm::vec3> positions;
+    std::vector<std::vector<int>> faceIndices;  // can store faces with arb many sides
+
+    std::string line;
+    while (std::getline(objfile, line)) {
+        std::istringstream iss(line);
+        std::string first;
+        iss >> first;  // streams until whitespace, so will get the first word (v, f, vn, etc)
+
+        if (first == "v") {
+            std::cout << "vertex line " << std::endl;
+            float x, y, z;
+            iss >> x >> y >> z;
+            positions.push_back(glm::vec3(x,y,z));
+        }
+        else if (first == "f") {
+            std::cout << "face line " << std::endl;
+            std::vector<int> verts;
+            std::string vertexStr;
+            while (iss >> vertexStr) {  // get just one string of pos/uv/normal
+                std::replace(vertexStr.begin(), vertexStr.end(), '/', ' ');
+                std::istringstream vs(vertexStr);
+                int posIndex;
+                vs >> posIndex;  // vs just streams the first number into posindex
+                verts.push_back(posIndex - 1);
+            }
+            faceIndices.push_back(verts);
+        }
+        else continue;
+    }
+    std::cout << positions.size() << " vertices, " << faceIndices.size() << " faces" << std::endl;
+
+    // now build the m_mesh object
+    m_mesh->buildMesh(positions, faceIndices);
+
+    // buffer the data
+    m_mesh->initializeAndBufferGeometryData();
+    update();
+
 }
 
 void MyGL::initializeGL()
@@ -88,10 +138,17 @@ void MyGL::paintGL()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glm::mat4 viewproj = m_camera.getViewProj();
+    // glm::mat4 model = glm::mat4(1.f);
     m_progLambert.setUnifMat4("u_ViewProj", viewproj);
     m_progFlat.setUnifMat4("u_ViewProj", viewproj);
     m_progLambert.setUnifVec3("u_CamPos", m_camera.eye);
     m_progFlat.setUnifMat4("u_Model", glm::mat4(1.f));
+
+    // if (!m_mesh) {
+    //     std::cout << "aaaaaah" <<std::endl;
+    //     return;
+    // }
+    // m_progFlat.draw(*m_mesh);
 
     //Create a model matrix. This one rotates the square by PI/4 radians then translates it by <-2,0,0>.
     //Note that we have to transpose the model matrix before passing it to the shader
@@ -113,7 +170,14 @@ void MyGL::paintGL()
 }
 
 void MyGL::keyPressEvent(QKeyEvent *e) {
-    ;
+    switch (e->key()) {
+        case Qt::Key_N: ;
+        case Qt::Key_M: ;
+        case Qt::Key_F: ;
+        case Qt::Key_V: ;
+        case Qt::Key_H: ;
+    }
+    update();
 }
 
 void MyGL::mousePressEvent(QMouseEvent *e) {

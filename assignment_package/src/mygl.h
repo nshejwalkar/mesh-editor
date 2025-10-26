@@ -10,6 +10,7 @@
 #include <QOpenGLVertexArrayObject>
 #include <QOpenGLShaderProgram>
 #include <QTimer>
+#include <mesh.h>
 
 
 class MyGL
@@ -33,6 +34,12 @@ private:
     // in the scene.
     glm::vec2 m_mousePosPrev;
 
+    uPtr<Mesh> m_mesh;  // stores the mesh
+
+    Vertex* m_selectedVertex;
+    HalfEdge* m_selectedHalfEdge;
+    Face* m_selectedFace;
+
 
 public:
     explicit MyGL(QWidget *parent = nullptr);
@@ -41,6 +48,7 @@ public:
     void initializeGL();
     void resizeGL(int w, int h);
     void paintGL();
+    void loadOBJ(const QString& path);
 
 protected:
     void keyPressEvent(QKeyEvent *e);
