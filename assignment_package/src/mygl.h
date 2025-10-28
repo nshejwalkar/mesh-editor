@@ -66,6 +66,10 @@ protected:
     void mouseMoveEvent(QMouseEvent *e);
     void wheelEvent(QWheelEvent *e);
 
+    // expose a signal to mainwindow to rebuild the lists
+signals:
+    void sig_meshWasBuiltOrRebuilt(const Mesh*);
+
 public slots:
     void tick();
 };

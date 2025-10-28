@@ -6,7 +6,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-
+#include <string>
+#include <debug.h>
 
 MyGL::MyGL(QWidget *parent)
     : OpenGLContext(parent),
@@ -36,6 +37,7 @@ MyGL::~MyGL()
 }
 
 void MyGL::selectVertex(Vertex* v) {
+    LOG("selected vertex");
     m_selectedVertex = v;
     m_vertDisplay.updateVertex(v);
     update();
@@ -89,8 +91,13 @@ void MyGL::loadOBJ(const QString& path) {
     // now build the m_mesh object
     m_mesh->buildMesh(positions, faceIndices);
 
+    // trigger the rebuild slot for the non-gl ui
+    LOG("emitting signal");
+    emit sig_meshWasBuiltOrRebuilt(m_mesh.get());
+
     // buffer the data
     m_mesh->initializeAndBufferGeometryData();
+
     update();
 
 }
@@ -163,6 +170,13 @@ void MyGL::paintGL()
 
     if (m_mesh && m_mesh->getIndexBufferLength() > 0) {  // only display if set
         m_progFlat.draw(*m_mesh);
+
+        glDisable(GL_DEPTH_TEST);
+        if (m_vertDisplay.getIndexBufferLength() > 0) m_progFlat.draw(m_vertDisplay);
+        if (m_faceDisplay.getIndexBufferLength() > 0) m_progFlat.draw(m_faceDisplay);
+        if (m_edgeDisplay.getIndexBufferLength() > 0) m_progFlat.draw(m_edgeDisplay);
+        glEnable(GL_DEPTH_TEST);
+
         return;
     }
 
@@ -187,13 +201,21 @@ void MyGL::paintGL()
 
 void MyGL::keyPressEvent(QKeyEvent *e) {
     switch (e->key()) {
-        case Qt::Key_N: ;
-        case Qt::Key_M: ;
-        case Qt::Key_F: ;
-        case Qt::Key_V: ;
-        case Qt::Key_H: ;
+        case Qt::Key_N:
+            if (m_edgeDisplay.getIndexBufferLength() > 0) selectHalfEdge(m_selectedHalfEdge->next);
+        case Qt::Key_M:
+            if (m_edgeDisplay.getIndexBufferLength() > 0) selectHalfEdge(m_selectedHalfEdge->sym);
+        case Qt::Key_F:
+            if (m_edgeDisplay.getIndexBufferLength() > 0) selectFace(m_selectedHalfEdge->face);
+        case Qt::Key_V:
+            if (m_edgeDisplay.getIndexBufferLength() > 0) selectVertex(m_selectedHalfEdge->vertex);
+        case Qt::Key_H:
+            if (e->modifiers() & Qt::ShiftModifier) {
+                if (m_faceDisplay.getIndexBufferLength() > 0) selectHalfEdge(m_selectedFace->edge);
+            } else {
+                if (m_vertDisplay.getIndexBufferLength() > 0) selectHalfEdge(m_selectedVertex->edge);
+            }
     }
-    update();
 }
 
 void MyGL::mousePressEvent(QMouseEvent *e) {

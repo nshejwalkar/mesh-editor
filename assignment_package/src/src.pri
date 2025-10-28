@@ -17,6 +17,7 @@ SOURCES += \
     $$PWD/scene/squareplane.cpp
 
 HEADERS += \
+    $$PWD/debug.h \
     $$PWD/la.h \
     $$PWD/mainwindow.h \
     $$PWD/mesh.h \

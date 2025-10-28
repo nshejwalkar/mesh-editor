@@ -12,7 +12,6 @@ void Mesh::buildMesh(const std::vector<glm::vec3>& positions, const std::vector<
     this->vertices.clear();
     this->faces.clear();
     this->edges.clear();
-
     // first fill out the vertices
     for (const glm::vec3& pos : positions) {
         auto v = std::make_unique<Vertex>(pos);
@@ -66,20 +65,30 @@ void Mesh::buildMesh(const std::vector<glm::vec3>& positions, const std::vector<
 }
 
 void Mesh::initializeAndBufferGeometryData() {
+    // the below vectors are for each vertex. must add vertex multiple times, one for each face. (24 for cube)
     std::vector<glm::vec3> pos;
     std::vector<glm::vec3> col;
     std::vector<glm::vec3> nor;
-    std::vector<GLuint> idx;
+    std::vector<GLuint> idx;  // 3*2*6 for cube
 
     int anchor = 0;
     for(auto& f : this->faces) {
         anchor = pos.size();
         // first, traverse around HEs and push verts in vbo
         HalfEdge* cur = f->edge;
+
+        // every vertex on this face will have the same normal, so calculate it now
+        // we are assuming CCW vertex order, so cross product will always be out of face (+)
+        // also assuming the mesh is well formed, so catmull clark wont result in 3 colinear vertices
+        glm::vec3 diff1 = (cur->vertex->pos - cur->next->vertex->pos);
+        glm::vec3 diff2 = (cur->next->vertex->pos - cur->next->next->vertex->pos);
+        glm::vec3 face_normal = glm::cross(diff1, diff2);
+
         int numVerts = 0;
         do {
             pos.push_back(cur->vertex->pos);
             col.push_back(f->color);
+            nor.push_back(face_normal);
             numVerts++;
             cur = cur->next;
         } while (cur != f->edge);
@@ -100,6 +109,10 @@ void Mesh::initializeAndBufferGeometryData() {
     generateBuffer(BufferType::COLOR);
     bindBuffer(BufferType::COLOR);
     bufferData(BufferType::COLOR, col);
+
+    generateBuffer(BufferType::NORMAL);
+    bindBuffer(BufferType::NORMAL);
+    bufferData(BufferType::NORMAL, col);
 
     generateBuffer(BufferType::INDEX);
     bindBuffer(BufferType::INDEX);

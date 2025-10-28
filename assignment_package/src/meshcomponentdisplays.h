@@ -13,6 +13,10 @@ public:
     void initializeAndBufferGeometryData() override;
     // Change which Vertex representedVertex points to
     void updateVertex(Vertex*);
+
+    GLenum drawMode() override {
+        return GL_POINTS;
+    }
 };
 
 class FaceDisplay : public Drawable {
@@ -26,6 +30,10 @@ public:
     void initializeAndBufferGeometryData() override;
     // Change which Face representedFace points to
     void updateFace(Face*);
+
+    GLenum drawMode() override {
+        return GL_LINES;
+    }
 };
 
 class HalfEdgeDisplay : public Drawable {
@@ -39,4 +47,8 @@ public:
     void initializeAndBufferGeometryData() override;
     // Change which HalfEdge representedHalfEdge points to
     void updateHalfEdge(HalfEdge*);
+
+    GLenum drawMode() override {
+        return GL_LINES;
+    }
 };

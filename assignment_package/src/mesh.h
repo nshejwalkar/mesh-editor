@@ -18,5 +18,17 @@ public:
     void initializeAndBufferGeometryData() override;
     void loadOBJ(QString&);
     GLenum drawMode() override;
+
+    const std::vector<uPtr<Face>>& getFaces() const {
+        return faces;
+    };
+
+    const std::vector<uPtr<Vertex>>& getVertices() const {
+        return vertices;
+    };
+
+    const std::vector<uPtr<HalfEdge>>& getEdges() const {
+        return edges;
+    };
 };
 

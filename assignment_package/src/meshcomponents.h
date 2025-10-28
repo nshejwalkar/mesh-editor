@@ -8,6 +8,11 @@ class Vertex : public QListWidgetItem
 {
     friend class HalfEdge;
     friend class Mesh;
+    friend class VertexDisplay;
+    friend class FaceDisplay;
+    friend class HalfEdgeDisplay;
+    friend class MyGL;
+
 private:
     glm::vec3 pos;
     HalfEdge* edge;
@@ -21,8 +26,11 @@ public:
 
 class Face : public QListWidgetItem
 {
-    friend class HalfEdge;
     friend class Mesh;
+    friend class HalfEdge;
+    friend class FaceDisplay;
+    friend class MyGL;
+
 private:
     HalfEdge* edge;
     glm::vec3 color;
@@ -36,6 +44,10 @@ public:
 class HalfEdge : public QListWidgetItem
 {
     friend class Mesh;
+    friend class FaceDisplay;
+    friend class HalfEdgeDisplay;
+    friend class MyGL;
+
 private:
     HalfEdge* next;
     HalfEdge* sym;
