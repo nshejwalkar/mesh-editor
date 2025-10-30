@@ -37,5 +37,5 @@ HalfEdge::HalfEdge()
     next(nullptr), sym(nullptr), face(nullptr), vertex(nullptr),
     id(last_created++)
 {
-    setText(QString::number(id+1));
+    setText(QString::number(id));
 }

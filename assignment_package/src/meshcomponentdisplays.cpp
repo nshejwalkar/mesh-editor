@@ -21,11 +21,13 @@ void VertexDisplay::updateVertex(Vertex* v) {
 }
 
 void FaceDisplay::updateFace(Face* f) {
+    LOG("updated face");
     representedFace = f;
     initializeAndBufferGeometryData();
 }
 
 void HalfEdgeDisplay::updateHalfEdge(HalfEdge* he) {
+    LOG("updated edge");
     representedHalfEdge = he;
     initializeAndBufferGeometryData();
 }

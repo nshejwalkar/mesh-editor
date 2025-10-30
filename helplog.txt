@@ -1,9 +1,26 @@
-6:42pm: Looked up how to integrate qfiledialog and related libraries
+monday 6:42pm: Looked up how to integrate qfiledialog and related libraries
 https://www.youtube.com/watch?v=Wp8XJIftsFY
 https://forum.qt.io/topic/19867/what-is-tr-function
 
-6:57pm: Ran into errors about initializing static variable
+monday 6:57pm: Ran into errors about initializing static variable
 https://stackoverflow.com/questions/5019856/initialize-static-variables-in-c-class
 
-7:55pm: found an easy way to parse strings
+monday 7:55pm: found an easy way to parse strings
 https://www.geeksforgeeks.org/cpp/processing-strings-using-stdistringstream/
+
+tuesday 4:50pm: ran into a warning while running the debugger
+https://stackoverflow.com/questions/66574138/directx12-dxgi-dll-catastrophic-failure-when-creating-idxgifactory
+
+wednesday 12:03am: ran into a warning while running the debugger
+https://stackoverflow.com/questions/35171310/what-could-be-the-cause-for-runtime-cant-find-linker-symbol-for-virtual-table
+
+wednesday 1:55am: I did not want to create 3 separate slots in MyGL to just change the x,y,z position of a vertex. Instead, I learned that you can use a lambda to call a function instead (so you can pass your own arguments as well), but only with a newer signals/slots syntax using function pointers that checks correctness at compile time.
+https://stackoverflow.com/questions/19719397/qt-slots-and-c11-lambda
+https://asmaloney.com/2016/03/code/using-c11-lambdas-as-qt-slots/
+
+wednesday 2:30am: I was wondering how altering a VBO would work just for one vertex. and would GL_DYNAMIC DRAW be better than the default GL_STATIC_DRAW when I get to the Catmull-Clark operation, considering that we are modifying the original graph/buffers?
+https://stackoverflow.com/questions/38283904/how-to-change-specific-part-of-vbo
+https://community.khronos.org/t/single-vbo-memory-management-and-state-change-optimization-techniques/108659
+
+thursday 4:10am: Needed to calculate a positive modulo to wrap around my edges array for quadrangulation
+https://stackoverflow.com/questions/14997165/fastest-way-to-get-a-positive-modulo-in-c-c

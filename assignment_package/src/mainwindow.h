@@ -24,12 +24,13 @@ private slots:
 
     // this connects to a signal in mygl after every build or rebuild
     void slot_rebuildLists(const Mesh* mesh);
-    void slot_onVertexPicked(QListWidgetItem* vertItem, QListWidgetItem*);
-    void slot_onFacePicked(QListWidgetItem* faceItem, QListWidgetItem*);
-    void slot_onEdgePicked(QListWidgetItem* edgeItem, QListWidgetItem*);
+    void slot_onVertexPicked(QListWidgetItem* vertItem);
+    void slot_onFacePicked(QListWidgetItem* faceItem);
+    void slot_onEdgePicked(QListWidgetItem* edgeItem);
 
 private:
     Ui::MainWindow *ui;
+    void resetAllWidgetValues();
 };
 
 

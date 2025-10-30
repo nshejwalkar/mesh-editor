@@ -36,24 +36,107 @@ MyGL::~MyGL()
     glDeleteVertexArrays(1, &vao);
 }
 
-void MyGL::selectVertex(Vertex* v) {
+void MyGL::slot_splitEdge() {
+    // perform the mesh operation
+    LOG("performing splitEdge");
+    m_mesh->splitEdge(m_selectedHalfEdge);
+    // update m_edgeDisplay just to rebuffer data (could also just call initandbuffer())
+    m_edgeDisplay.updateHalfEdge(m_selectedHalfEdge);
+    // call update() to update display
+    update();
+    // emit signal to mainwindow to update lists. we're unnecesarily reforming the whole list, but it doens't really matter
+    emit sig_meshWasBuiltOrRebuilt(m_mesh.get());
+}
+
+void MyGL::slot_triangulateFace() {
+    // perform the mesh operation
+    LOG("performing triangulate");
+    m_mesh->triangulateFace(m_selectedFace);
+    // possibly update m_[thing]display
+    m_faceDisplay.updateFace(m_selectedFace);
+    // call update() to update display
+    update();
+    // emit signal to mainwindow to update lists
+    emit sig_meshWasBuiltOrRebuilt(m_mesh.get());
+}
+
+void MyGL::slot_catmullClark() {
+    LOG("performing catmull clark");
+    // perform the mesh operation
+    m_mesh->catmullClark();
+    LOG("performed catmull clark");
+    // then rebuffer all three small vert/face/edge displays
+    if (m_selectedFace) m_faceDisplay.updateFace(m_selectedFace);
+    if (m_selectedHalfEdge) m_edgeDisplay.updateHalfEdge(m_selectedHalfEdge);
+    if (m_selectedVertex) m_vertDisplay.updateVertex(m_selectedVertex);
+    m_mesh->initializeAndBufferGeometryData();
+    update();
+    emit sig_meshWasBuiltOrRebuilt(m_mesh.get());
+}
+
+glm::vec3 MyGL::selectVertex(Vertex* v) {
     LOG("selected vertex");
     m_selectedVertex = v;
     m_vertDisplay.updateVertex(v);
+    // we must trigger the whole mesh to be redrawn.
+    // might be unintuitive at first, because we can draw it on top, so occlusions/depth calc doesnt even matter here
+    // but its not possible to glClear only a single VBO's contributions after its drawn unless you somehow keep track of it in the framebuffer
+    // and we must update() the whole mesh, including this vertex, anyway at a high frame rate, so trying to hack it is beyond not worth it
     update();
+    return v->pos;
 }
 
-void MyGL::selectFace(Face* f) {
+glm::vec3 MyGL::selectFace(Face* f) {
+    LOG("selected face " << f->id);
     m_selectedFace = f;
     m_faceDisplay.updateFace(f);
     update();
+
+    return f->color;
 }
 
 void MyGL::selectHalfEdge(HalfEdge* he) {
+    LOG("selected edge");
     m_selectedHalfEdge = he;
     m_edgeDisplay.updateHalfEdge(he);
     update();
 }
+
+void MyGL::changeVertexPosition(float val, char direction) {
+    LOG("changing " << direction);
+    switch (direction) {
+        case 'X':
+            m_selectedVertex->pos.x = val;
+            break;
+        case 'Y':
+            m_selectedVertex->pos.y = val;
+            break;
+        case 'Z':
+            m_selectedVertex->pos.z = val;
+            break;
+    }
+    // must update VBO. for now lets just change the whole thing
+    m_mesh->initializeAndBufferGeometryData();
+    update();
+};
+
+void MyGL::changeFaceColor(float val, char channel) {
+    LOG("changing " << channel);
+    switch (channel) {
+        case 'R':
+            m_selectedFace->color.r = val;
+            break;
+        case 'G':
+            m_selectedFace->color.g = val;
+            break;
+        case 'B':
+            m_selectedFace->color.b = val;
+            break;
+        }
+    m_mesh->initializeAndBufferGeometryData();
+    update();
+}
+
 
 void MyGL::loadOBJ(const QString& path) {
     std::ifstream objfile(path.toStdString());
@@ -167,9 +250,10 @@ void MyGL::paintGL()
     m_progFlat.setUnifMat4("u_ViewProj", viewproj);
     m_progLambert.setUnifVec3("u_CamPos", m_camera.eye);
     m_progFlat.setUnifMat4("u_Model", glm::mat4(1.f));
+    m_progLambert.setUnifMat4("u_Model", glm::mat4(1.f));
 
     if (m_mesh && m_mesh->getIndexBufferLength() > 0) {  // only display if set
-        m_progFlat.draw(*m_mesh);
+        m_progLambert.draw(*m_mesh);  // binds to existing buffers
 
         glDisable(GL_DEPTH_TEST);
         if (m_vertDisplay.getIndexBufferLength() > 0) m_progFlat.draw(m_vertDisplay);
@@ -202,18 +286,30 @@ void MyGL::paintGL()
 void MyGL::keyPressEvent(QKeyEvent *e) {
     switch (e->key()) {
         case Qt::Key_N:
+            LOG("N");
             if (m_edgeDisplay.getIndexBufferLength() > 0) selectHalfEdge(m_selectedHalfEdge->next);
+            break;
         case Qt::Key_M:
+            LOG("M");
             if (m_edgeDisplay.getIndexBufferLength() > 0) selectHalfEdge(m_selectedHalfEdge->sym);
+            break;
         case Qt::Key_F:
+            LOG("F");
             if (m_edgeDisplay.getIndexBufferLength() > 0) selectFace(m_selectedHalfEdge->face);
+            break;
         case Qt::Key_V:
+            LOG("V");
             if (m_edgeDisplay.getIndexBufferLength() > 0) selectVertex(m_selectedHalfEdge->vertex);
+            break;
         case Qt::Key_H:
             if (e->modifiers() & Qt::ShiftModifier) {
+                LOG("Shift H");
                 if (m_faceDisplay.getIndexBufferLength() > 0) selectHalfEdge(m_selectedFace->edge);
+                break;
             } else {
+                LOG("H");
                 if (m_vertDisplay.getIndexBufferLength() > 0) selectHalfEdge(m_selectedVertex->edge);
+                break;
             }
     }
 }

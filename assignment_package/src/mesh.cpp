@@ -1,10 +1,270 @@
 #include "mesh.h"
 #include "meshcomponents.h"
 #include <stdlib.h>
+#include "debug.h"
 
 Mesh::Mesh(OpenGLContext* context)
     : Drawable(context)
 {}
+
+void Mesh::splitEdge(HalfEdge* he1) {
+    // dont delete anything. just add
+    LOG("splitting edge");
+    Vertex* v1 = he1->vertex;
+    HalfEdge* he2 = he1->sym;
+    Vertex* v2 = he2->vertex;
+
+    uPtr<Vertex> v3 = mkU<Vertex>(0.5f*(v1->pos + v2->pos));
+    uPtr<HalfEdge> he1b = mkU<HalfEdge>();
+    uPtr<HalfEdge> he2b = mkU<HalfEdge>();
+
+    he1b->vertex = v1;  he1b->face = he1->face;
+    he2b->vertex = v2;  he1b->face = he1->face;
+
+    he1b->sym = he2;        he1b->next = he1->next;  he1b->vertex = v1;
+    he2b->sym = he1;        he2b->next = he2->next;  he2b->vertex = v2;
+    he1->sym = he2b.get();  he1->next = he1b.get();  he1->vertex = v3.get();
+    he2->sym = he1b.get();  he2->next = he2b.get();  he2->vertex = v3.get();
+
+    v1->edge = he1b.get();
+    v2->edge = he2b.get();
+    v3->edge = he2;
+
+    this->vertices.push_back(std::move(v3));
+    this->edges.push_back(std::move(he1b));
+    this->edges.push_back(std::move(he2b));
+}
+
+void Mesh::triangulateFace(Face* f) {
+    // dont delete anything. just add
+    LOG("triangulating face");
+
+    auto he0 = f->edge;  int numSides = 0;
+    do {he0 = he0->next; numSides++;} while (he0 != f->edge);
+    if (numSides == 3) {LOG("base case: triangle face"); return;}
+
+    he0 = he0->next;
+    uPtr<HalfEdge> heA = mkU<HalfEdge>();
+    uPtr<HalfEdge> heB = mkU<HalfEdge>();
+
+    heA->vertex = he0->vertex;
+    heB->vertex = he0->next->next->vertex;
+    heA->sym = heB.get();  heB->sym = heA.get();
+
+    uPtr<Face> face2 = mkU<Face>();
+    face2->edge = heA.get();
+    face2->color = f->color;
+
+    heA->face = face2.get();
+    he0->next->face = face2.get();
+    he0->next->next->face = face2.get();
+    heB->face = f;
+
+    heB->next = he0->next->next->next;
+    he0->next->next->next = heA.get();
+    heA->next = he0->next;
+    he0->next = heB.get();
+
+    this->faces.push_back(std::move(face2));
+    this->edges.push_back(std::move(heA));
+    this->edges.push_back(std::move(heB));
+
+    // we just did one triangle. we can recurse onto the face we didnt create, now with 1 less sides
+    Mesh::triangulateFace(f);
+}
+
+void Mesh::addSmoothedMidpoint(HalfEdge* he1,
+                                       std::unordered_map<Face*, Vertex*>& face_to_cents,
+                                       std::unordered_set<HalfEdge*>& edges_pointing_to_midpoints) {
+    // dont delete anything. just add
+    Vertex* v1 = he1->vertex;
+    HalfEdge* he2 = he1->sym;
+    Vertex* v2 = he2->vertex;
+
+    std::cout<<v1->pos.x<<", "<<v1->pos.y<<", "<<v1->pos.z<<std::endl;
+    std::cout<<v2->pos.x<<", "<<v2->pos.y<<", "<<v2->pos.z<<std::endl;
+    std::cout<<face_to_cents[he1->face]->pos.x<<", "<<face_to_cents[he1->face]->pos.y<<", "<<face_to_cents[he1->face]->pos.z<<std::endl;
+    std::cout<<face_to_cents[he2->face]->pos.x<<", "<<face_to_cents[he2->face]->pos.y<<", "<<face_to_cents[he2->face]->pos.z<<std::endl;
+    uPtr<Vertex> v3 = mkU<Vertex>(0.25f*(v1->pos + v2->pos + face_to_cents[he1->face]->pos + face_to_cents[he2->face]->pos));
+    std::cout<<"adding smoothed midpoint" << v3->id << " at ";
+    std::cout<<v3->pos.x<<", "<<v3->pos.y<<", "<<v3->pos.z<<std::endl;
+    uPtr<HalfEdge> he1b = mkU<HalfEdge>();
+    uPtr<HalfEdge> he2b = mkU<HalfEdge>();
+
+    he1b->vertex = v1;  he1b->face = he1->face;
+    he2b->vertex = v2;  he2b->face = he2->face;
+
+    he1b->sym = he2;        he1b->next = he1->next;  he1b->vertex = v1;
+    he2b->sym = he1;        he2b->next = he2->next;  he2b->vertex = v2;
+    he1->sym = he2b.get();  he1->next = he1b.get();  he1->vertex = v3.get();
+    he2->sym = he1b.get();  he2->next = he2b.get();  he2->vertex = v3.get();
+
+    v1->edge = he1b.get();
+    v2->edge = he2b.get();
+    v3->edge = he2;
+
+    edges_pointing_to_midpoints.insert(he1);
+    edges_pointing_to_midpoints.insert(he2);
+
+    this->edges.push_back(std::move(he1b));
+    this->edges.push_back(std::move(he2b));
+    this->vertices.push_back(std::move(v3));
+}
+
+static std::vector<Vertex*> getOriginalVertices(const Mesh& m) {
+    std::vector<Vertex*> originalVerts;
+    for (auto& v : m.getVertices()) originalVerts.push_back(v.get());
+    return originalVerts;
+}
+static std::vector<HalfEdge*> getOriginalHalfEdges(const Mesh& m) {
+    std::vector<HalfEdge*> originalEdges;
+    for (auto& v : m.getEdges()) originalEdges.push_back(v.get());
+    return originalEdges;
+}
+static std::vector<Face*> getOriginalFaces(const Mesh& m) {
+    std::vector<Face*> originalFaces;
+    for (auto& v : m.getFaces()) originalFaces.push_back(v.get());
+    return originalFaces;
+}
+
+void Mesh::catmullClark() {
+    // for each face, compute centroids (vertices) and store in unorderedmap <Face*, Vertex*>
+    std::vector<Vertex*> originalVerts = getOriginalVertices(*this);
+    std::vector<HalfEdge*> originalEdges = getOriginalHalfEdges(*this);
+    std::vector<Face*> originalFaces = getOriginalFaces(*this);
+
+    LOG("computing centroids");
+    std::unordered_map<Face*, Vertex*> face_to_cents;
+    for (auto& f : this->getFaces()) {
+        glm::vec3 avg_pos = {0,0,0};
+        int numSides = 0;
+        auto cur = f->edge;
+        do {
+            avg_pos += cur->vertex->pos;
+            numSides++;
+            cur = cur->next;
+        } while (cur != f->edge);
+        avg_pos /= numSides;
+        uPtr<Vertex> centroid = mkU<Vertex>(avg_pos);
+        std::cout<<"adding centroid "<< centroid->id <<" at "<<centroid->pos.x<<", "<<centroid->pos.y<<", "<<centroid->pos.z<<std::endl;
+
+        face_to_cents[f.get()] = centroid.get();
+        this->vertices.push_back(std::move(centroid));
+    }
+
+    LOG("computing smooth midpoints");
+    std::vector<HalfEdge*> originalEdges;
+    for (auto& he : getEdges()) originalEdges.push_back(he.get());
+    // for each edge, compute smooth midpoint (vertex)
+    std::unordered_set<HalfEdge*> already_split;
+    std::unordered_set<HalfEdge*> edges_pointing_to_midpoints;
+    for (HalfEdge* he : originalEdges) {
+        if (already_split.count(he) != 0) continue;
+        already_split.insert(he);
+        already_split.insert(he->sym);
+
+        addSmoothedMidpoint(he, face_to_cents, edges_pointing_to_midpoints);
+    }
+
+    LOG("smoothing original vertices");
+    // smooth original vertices
+    for (Vertex* vertex : originalVerts) {
+        // get n by moving in a star around vertex
+        auto cur = vertex->edge;
+        int n = 0;
+        glm::vec3 sumAdjMidpts = {0.f,0.f,0.f};
+        glm::vec3 sumCentroids = {0.f,0.f,0.f};
+        do {
+            sumAdjMidpts += cur->sym->vertex->pos;
+            sumCentroids += face_to_cents[cur->face]->pos;
+            cur = cur->next->sym;
+            n++;
+        } while(cur != vertex->edge);
+
+        float frac = 1.f/n;
+        vertex->pos = (frac*(float)(n-2)*vertex->pos) +
+                      (frac*frac*sumAdjMidpts) +
+                      (frac*frac*sumCentroids);
+        std::cout<<"changed vertex to "<<vertex->pos.x<<", "<<vertex->pos.y<<", "<<vertex->pos.z<<std::endl;;
+    }
+
+    LOG("quadrangulating face");
+    // for every face, quadrangulate
+    std::vector<Face*> originalFaces;
+    for (auto& f : this->faces) originalFaces.push_back(f.get());
+    for (auto origFace : originalFaces) {
+        // given: Face*, midpoints/set of halfedges that point to midpoints
+        // if the edge that face points to isn't going into a midpoint, reassign
+        // if (edges_pointing_to_midpoints.count(origFace->edge) == 0) {std::cout<<"chaggigg face edge"<<std::endl; origFace->edge = origFace->edge->next;}
+
+        auto centroid = face_to_cents[origFace];
+
+        LOG("traversing edges");
+        std::vector<HalfEdge*> edges;
+        auto c = origFace->edge;
+        do {
+            edges.push_back(c);
+            c = c->next;
+        }
+        while(c!=origFace->edge);
+        int n = edges.size();
+
+        LOG("making faces");
+        std::vector<Face*> newFaces = {origFace};
+        for (int i = 1; i < n/2; i++) {
+            uPtr<Face> newFace = mkU<Face>();
+            newFace->color = origFace->color;
+            newFaces.push_back(newFace.get());
+            this->faces.push_back(std::move(newFace));
+        }
+
+        std::vector<HalfEdge*> newEdges;
+
+        LOG("main");
+        for (int i = 0; i < n; i = i+2) {
+            LOG("subface " << i/2);
+            uPtr<HalfEdge> a = mkU<HalfEdge>();
+            uPtr<HalfEdge> b = mkU<HalfEdge>();
+
+            newEdges.push_back(a.get());
+            newEdges.push_back(b.get());
+
+            a->vertex = centroid;
+            b->vertex = edges[((i-2)%n+n)%n]->vertex;
+            centroid->edge = a.get();
+
+            auto cur = edges[i]; auto prev = edges[((i-1)%n+n)%n];
+            a->next = b.get();
+            b->next = prev;
+            prev->next = cur;
+            cur->next = a.get();
+
+            auto newFace = newFaces[i/2]; std::cout<<"new face id is "<<newFace->id<<std::endl;
+            a->face = newFace;
+            b->face = newFace;  // std::cout<<"changing newFace edge from "<<newFace->edge->id<<" to "<<b.get()->id<<std::endl;
+            cur->face = newFace;
+            prev->face = newFace;
+            newFace->edge = b.get();
+
+            if (i>=2) {
+                HalfEdge* lastA = newEdges[i+1-3];
+                b->sym = lastA;
+                lastA->sym = b.get();
+
+                if (i == n-2) {
+                    HalfEdge* firstB = newEdges[1];
+                    HalfEdge* lastA = newEdges[n-2];
+                    firstB->sym = lastA;
+                    lastA->sym = firstB;
+                }
+            }
+
+            this->edges.push_back(std::move(a));
+            this->edges.push_back(std::move(b));
+        };
+    }
+
+}
 
 // passed in from MyGL::loadOBJ
 void Mesh::buildMesh(const std::vector<glm::vec3>& positions, const std::vector<std::vector<int>>& faceIndices) {
@@ -65,6 +325,7 @@ void Mesh::buildMesh(const std::vector<glm::vec3>& positions, const std::vector<
 }
 
 void Mesh::initializeAndBufferGeometryData() {
+    destroyGPUData();
     // the below vectors are for each vertex. must add vertex multiple times, one for each face. (24 for cube)
     std::vector<glm::vec3> pos;
     std::vector<glm::vec3> col;
@@ -82,11 +343,12 @@ void Mesh::initializeAndBufferGeometryData() {
         // also assuming the mesh is well formed, so catmull clark wont result in 3 colinear vertices
         glm::vec3 diff1 = (cur->vertex->pos - cur->next->vertex->pos);
         glm::vec3 diff2 = (cur->next->vertex->pos - cur->next->next->vertex->pos);
-        glm::vec3 face_normal = glm::cross(diff1, diff2);
+        glm::vec3 face_normal = glm::normalize(glm::cross(diff1, diff2));
 
         int numVerts = 0;
         do {
             pos.push_back(cur->vertex->pos);
+            // LOG("pushing back color: " << f->color.r << " , " << f->color.g << " , " << f->color.b);
             col.push_back(f->color);
             nor.push_back(face_normal);
             numVerts++;
@@ -112,7 +374,7 @@ void Mesh::initializeAndBufferGeometryData() {
 
     generateBuffer(BufferType::NORMAL);
     bindBuffer(BufferType::NORMAL);
-    bufferData(BufferType::NORMAL, col);
+    bufferData(BufferType::NORMAL, nor);
 
     generateBuffer(BufferType::INDEX);
     bindBuffer(BufferType::INDEX);

@@ -37,9 +37,9 @@ private:
 
     uPtr<Mesh> m_mesh;  // stores the mesh
 
-    Vertex* m_selectedVertex;
-    HalfEdge* m_selectedHalfEdge;
-    Face* m_selectedFace;
+    Vertex* m_selectedVertex = nullptr;
+    HalfEdge* m_selectedHalfEdge = nullptr;
+    Face* m_selectedFace = nullptr;
 
 
 public:
@@ -52,9 +52,12 @@ public:
     void loadOBJ(const QString& path);
 
     // called by mainwindow
-    void selectVertex(Vertex* v);
+    glm::vec3 selectVertex(Vertex* v);
     void selectHalfEdge(HalfEdge* he);
-    void selectFace(Face* f);
+    glm::vec3 selectFace(Face* f);
+
+    void changeVertexPosition(float, char);
+    void changeFaceColor(float, char);
 
     VertexDisplay m_vertDisplay;
     FaceDisplay m_faceDisplay;
@@ -72,6 +75,9 @@ signals:
 
 public slots:
     void tick();
+    void slot_splitEdge();
+    void slot_triangulateFace();
+    void slot_catmullClark();
 };
 
 

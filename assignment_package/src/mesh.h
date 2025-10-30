@@ -19,6 +19,12 @@ public:
     void loadOBJ(QString&);
     GLenum drawMode() override;
 
+    void splitEdge(HalfEdge*);
+    void triangulateFace(Face*);
+    void catmullClark();
+
+    void addSmoothedMidpoint(HalfEdge*, std::unordered_map<Face*, Vertex*>&, std::unordered_set<HalfEdge*>&);
+
     const std::vector<uPtr<Face>>& getFaces() const {
         return faces;
     };
