@@ -38,7 +38,6 @@ MyGL::~MyGL()
 
 void MyGL::slot_splitEdge() {
     // perform the mesh operation
-    LOG("performing splitEdge");
     if (!m_selectedHalfEdge) return;
     m_mesh->splitEdge(m_selectedHalfEdge);
     // update m_edgeDisplay just to rebuffer data (could also just call initandbuffer())
@@ -51,7 +50,6 @@ void MyGL::slot_splitEdge() {
 
 void MyGL::slot_triangulateFace() {
     // perform the mesh operation
-    LOG("performing triangulate");
     if (!m_selectedFace) return;
     m_mesh->triangulateFace(m_selectedFace);
     // possibly update m_[thing]display
@@ -63,10 +61,8 @@ void MyGL::slot_triangulateFace() {
 }
 
 void MyGL::slot_catmullClark() {
-    LOG("performing catmull clark");
     // perform the mesh operation
     m_mesh->catmullClark();
-    LOG("performed catmull clark");
     // then rebuffer all three small vert/face/edge displays
     if (m_selectedFace) m_faceDisplay.updateFace(m_selectedFace);
     if (m_selectedHalfEdge) m_edgeDisplay.updateHalfEdge(m_selectedHalfEdge);
@@ -77,7 +73,6 @@ void MyGL::slot_catmullClark() {
 }
 
 glm::vec3 MyGL::selectVertex(Vertex* v) {
-    LOG("selected vertex");
     m_selectedVertex = v;
     m_vertDisplay.updateVertex(v);
     // we must trigger the whole mesh to be redrawn.
@@ -89,7 +84,6 @@ glm::vec3 MyGL::selectVertex(Vertex* v) {
 }
 
 glm::vec3 MyGL::selectFace(Face* f) {
-    LOG("selected face " << f->id);
     m_selectedFace = f;
     m_faceDisplay.updateFace(f);
     update();
@@ -98,14 +92,12 @@ glm::vec3 MyGL::selectFace(Face* f) {
 }
 
 void MyGL::selectHalfEdge(HalfEdge* he) {
-    LOG("selected edge");
     m_selectedHalfEdge = he;
     m_edgeDisplay.updateHalfEdge(he);
     update();
 }
 
 void MyGL::changeVertexPosition(float val, char direction) {
-    LOG("changing " << direction);
     switch (direction) {
         case 'X':
             m_selectedVertex->pos.x = val;
@@ -123,7 +115,6 @@ void MyGL::changeVertexPosition(float val, char direction) {
 };
 
 void MyGL::changeFaceColor(float val, char channel) {
-    LOG("changing " << channel);
     switch (channel) {
         case 'R':
             m_selectedFace->color.r = val;
@@ -183,7 +174,6 @@ void MyGL::loadOBJ(const QString& path) {
     m_mesh->buildMesh(positions, faceIndices);
 
     // Trigger the rebuild slot for the non-MyGl ui widget
-    LOG("emitting signal");
     emit sig_meshWasBuiltOrRebuilt(m_mesh.get());
 
     // Buffer the data

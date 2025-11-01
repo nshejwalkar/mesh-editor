@@ -185,7 +185,6 @@ void Mesh::smoothAllVertices(Mesh& m,
         vertex->pos = (frac*(float)(n-2)*vertex->pos) +
                       (frac*frac*sumAdjMidpts) +
                       (frac*frac*sumCentroids);
-        std::cout<<"changed vertex to "<<vertex->pos.x<<", "<<vertex->pos.y<<", "<<vertex->pos.z<<std::endl;;
     }
 }
 
@@ -226,7 +225,6 @@ void Mesh::quadrangulateAllFaces(Mesh& m,
         and create and assign the new inner edges by just indexing into the vectors we collected before.
         */
         for (int i = 0; i < n; i = i+2) {
-            LOG("subface " << i/2);
             uPtr<HalfEdge> a = mkU<HalfEdge>();
             uPtr<HalfEdge> b = mkU<HalfEdge>();
 
@@ -283,17 +281,13 @@ void Mesh::catmullClark() {
     // for each face, compute centroids (vertices) and store in an unorderedmap <Face*, Vertex*> to easily query later
     std::unordered_map<Face*, Vertex*> face_to_cents;
 
-    LOG("computing centroids");
     computeAndAddCentroids(*this, face_to_cents, originalFaces);
 
-    LOG("computing smooth midpoints");
     addAllSmoothedMidpoints(*this, face_to_cents, originalEdges);
 
-    LOG("smoothing original vertices");
     // smooth original vertices
     smoothAllVertices(*this, face_to_cents, originalVerts);
 
-    LOG("quadrangulating face");
     // for every face, quadrangulate
     quadrangulateAllFaces(*this, face_to_cents, originalFaces);
 

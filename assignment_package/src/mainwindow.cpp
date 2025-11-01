@@ -124,14 +124,12 @@ void MainWindow::on_actionQuit_triggered()
 
 void MainWindow::on_actionOpenOBJ_triggered()
 {
-    LOG("opening new file triggered");
     resetAllWidgetValues();
     QString filename = QFileDialog::getOpenFileName(this, "Open .obj File", getCurrentPath());
     ui->mygl->loadOBJ(filename);  // pass it off to mygl
 }
 
 void MainWindow::slot_rebuildLists(const Mesh* mesh) {
-    LOG("slot_rebuildlists triggered");
     // here, traverse thru mesh->vertices, faces, edges and add to ui
     for (const auto& vuptr : mesh->getVertices()) {
         ui->vertsListWidget->addItem(vuptr.get());
@@ -148,7 +146,6 @@ void MainWindow::slot_rebuildLists(const Mesh* mesh) {
 
 // better UX: when selecting a new vertex, update the spinners with position
 void MainWindow::slot_onVertexPicked(QListWidgetItem* vertItem) {
-    LOG("new vertex picked");
     // get vertex from vertItem
     // set ui->mygl->selectvertex()
     Vertex* vert = dynamic_cast<Vertex*>(vertItem);  // need a dynamic cast to get the child class
@@ -161,7 +158,6 @@ void MainWindow::slot_onVertexPicked(QListWidgetItem* vertItem) {
 
 // better UX
 void MainWindow::slot_onFacePicked(QListWidgetItem* faceItem) {
-    LOG("new face picked");
     // get Face from faceItem
     // set ui->mygl->selectFace()
     Face* face = dynamic_cast<Face*>(faceItem);  // need a dynamic cast to get the child class
@@ -173,7 +169,6 @@ void MainWindow::slot_onFacePicked(QListWidgetItem* faceItem) {
 }
 
 void MainWindow::slot_onEdgePicked(QListWidgetItem* edgeItem) {
-    LOG("new edge picked");
     // get Edge from edgeItem
     // set ui->mygl->selectEdge()
     HalfEdge* edge = dynamic_cast<HalfEdge*>(edgeItem);  // need a dynamic cast to get the child class

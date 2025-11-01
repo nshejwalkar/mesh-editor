@@ -15,27 +15,22 @@ HalfEdgeDisplay::HalfEdgeDisplay(OpenGLContext* context)
 
 
 void VertexDisplay::updateVertex(Vertex* v) {
-    LOG("updated vertex");
     representedVertex = v;
     initializeAndBufferGeometryData();
 }
 
 void FaceDisplay::updateFace(Face* f) {
-    LOG("updated face");
     representedFace = f;
     initializeAndBufferGeometryData();
 }
 
 void HalfEdgeDisplay::updateHalfEdge(HalfEdge* he) {
-    LOG("updated edge");
     representedHalfEdge = he;
     initializeAndBufferGeometryData();
 }
 
 void VertexDisplay::initializeAndBufferGeometryData() {
     destroyGPUData();
-
-    LOG("initializing buffer for selected vertex");
 
     // create a new, small vbo just for one vertex
     std::vector<glm::vec3> pos = {representedVertex->pos};
@@ -61,7 +56,6 @@ void VertexDisplay::initializeAndBufferGeometryData() {
 void FaceDisplay::initializeAndBufferGeometryData() {
     destroyGPUData();
 
-    LOG("initializing buffer for selected face");
     std::vector<glm::vec3> pos;
     std::vector<glm::vec3> col;
     std::vector<GLuint> idx;  // 0,1,1,2,2,3...
@@ -99,8 +93,6 @@ void FaceDisplay::initializeAndBufferGeometryData() {
 
 void HalfEdgeDisplay::initializeAndBufferGeometryData() {
     destroyGPUData();
-
-    LOG("initializing buffer for selected edge");
 
     // create a new, small vbo just for one edge
     std::vector<glm::vec3> pos = {representedHalfEdge->sym->vertex->pos, representedHalfEdge->vertex->pos};
