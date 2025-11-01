@@ -272,7 +272,7 @@ void Mesh::quadrangulateAllFaces(Mesh& m,
 void Mesh::catmullClark() {
     /*
     This function calls four helper functions that each independently perform a step of the Catmull-Clark algorithm.
-    In each helper is a more detailed comment to explain the implemented logic.
+    It edits the original mesh graph. In each helper is a more detailed comment to explain the implemented logic.
     */
     std::vector<Vertex*> originalVerts = getOriginalVertices(*this);
     std::vector<HalfEdge*> originalEdges = getOriginalHalfEdges(*this);
@@ -285,10 +285,8 @@ void Mesh::catmullClark() {
 
     addAllSmoothedMidpoints(*this, face_to_cents, originalEdges);
 
-    // smooth original vertices
     smoothAllVertices(*this, face_to_cents, originalVerts);
 
-    // for every face, quadrangulate
     quadrangulateAllFaces(*this, face_to_cents, originalFaces);
 
 }
