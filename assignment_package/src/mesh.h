@@ -11,6 +11,19 @@ private:
     std::vector<uPtr<Vertex>> vertices;
     std::vector<uPtr<HalfEdge>> edges;
 
+    void computeAndAddCentroids(Mesh&,
+                                std::unordered_map<Face*, Vertex*>&,
+                                std::vector<Face*>&);
+    void addAllSmoothedMidpoints(Mesh&,
+                                std::unordered_map<Face*, Vertex*>&,
+                                std::vector<HalfEdge*>&);
+    void smoothAllVertices(Mesh& m,
+                           std::unordered_map<Face*, Vertex*>&,
+                           std::vector<Vertex*>&);
+    void quadrangulateAllFaces(Mesh& m,
+                               std::unordered_map<Face*, Vertex*>&,
+                               std::vector<Face*>&);
+
 public:
     Mesh(OpenGLContext*);
     void buildMesh(const std::vector<glm::vec3>&,
@@ -23,7 +36,7 @@ public:
     void triangulateFace(Face*);
     void catmullClark();
 
-    void addSmoothedMidpoint(HalfEdge*, std::unordered_map<Face*, Vertex*>&, std::unordered_set<HalfEdge*>&);
+    void addSmoothedMidpoint(HalfEdge*, std::unordered_map<Face*, Vertex*>&);
 
     const std::vector<uPtr<Face>>& getFaces() const {
         return faces;

@@ -39,6 +39,7 @@ MyGL::~MyGL()
 void MyGL::slot_splitEdge() {
     // perform the mesh operation
     LOG("performing splitEdge");
+    if (!m_selectedHalfEdge) return;
     m_mesh->splitEdge(m_selectedHalfEdge);
     // update m_edgeDisplay just to rebuffer data (could also just call initandbuffer())
     m_edgeDisplay.updateHalfEdge(m_selectedHalfEdge);
@@ -51,6 +52,7 @@ void MyGL::slot_splitEdge() {
 void MyGL::slot_triangulateFace() {
     // perform the mesh operation
     LOG("performing triangulate");
+    if (!m_selectedFace) return;
     m_mesh->triangulateFace(m_selectedFace);
     // possibly update m_[thing]display
     m_faceDisplay.updateFace(m_selectedFace);
@@ -145,6 +147,12 @@ void MyGL::loadOBJ(const QString& path) {
     std::vector<glm::vec3> positions;
     std::vector<std::vector<int>> faceIndices;  // can store faces with arb many sides
 
+    /*
+    Here is the main logic of the file parsing. For each line, we check the first token of the line.
+    Depending on whether the line starts with "v" or "f", we either push the positions into the positions vector above,
+    or collect the relevant indices of the vertices into the faceIndices vector.
+    We can then pass in this information to a Mesh class function to build the half-edge mesh graph.
+    */
     std::string line;
     while (std::getline(objfile, line)) {
         std::istringstream iss(line);
@@ -171,16 +179,17 @@ void MyGL::loadOBJ(const QString& path) {
         else continue;
     }
 
-    // now build the m_mesh object
+    // Now, we build the m_mesh object
     m_mesh->buildMesh(positions, faceIndices);
 
-    // trigger the rebuild slot for the non-gl ui
+    // Trigger the rebuild slot for the non-MyGl ui widget
     LOG("emitting signal");
     emit sig_meshWasBuiltOrRebuilt(m_mesh.get());
 
-    // buffer the data
+    // Buffer the data
     m_mesh->initializeAndBufferGeometryData();
 
+    // Update and repaint the screen
     update();
 
 }

@@ -2,6 +2,9 @@
 #include "meshcomponents.h"
 #include <stdlib.h>
 #include "debug.h"
+#include <glm/glm.hpp>
+#include <glm/gtx/vector_angle.hpp>
+
 
 Mesh::Mesh(OpenGLContext* context)
     : Drawable(context)
@@ -9,7 +12,6 @@ Mesh::Mesh(OpenGLContext* context)
 
 void Mesh::splitEdge(HalfEdge* he1) {
     // dont delete anything. just add
-    LOG("splitting edge");
     Vertex* v1 = he1->vertex;
     HalfEdge* he2 = he1->sym;
     Vertex* v2 = he2->vertex;
@@ -19,7 +21,7 @@ void Mesh::splitEdge(HalfEdge* he1) {
     uPtr<HalfEdge> he2b = mkU<HalfEdge>();
 
     he1b->vertex = v1;  he1b->face = he1->face;
-    he2b->vertex = v2;  he1b->face = he1->face;
+    he2b->vertex = v2;  he2b->face = he2->face;
 
     he1b->sym = he2;        he1b->next = he1->next;  he1b->vertex = v1;
     he2b->sym = he1;        he2b->next = he2->next;  he2b->vertex = v2;
@@ -37,7 +39,6 @@ void Mesh::splitEdge(HalfEdge* he1) {
 
 void Mesh::triangulateFace(Face* f) {
     // dont delete anything. just add
-    LOG("triangulating face");
 
     auto he0 = f->edge;  int numSides = 0;
     do {he0 = he0->next; numSides++;} while (he0 != f->edge);
@@ -74,20 +75,14 @@ void Mesh::triangulateFace(Face* f) {
 }
 
 void Mesh::addSmoothedMidpoint(HalfEdge* he1,
-                                       std::unordered_map<Face*, Vertex*>& face_to_cents,
-                                       std::unordered_set<HalfEdge*>& edges_pointing_to_midpoints) {
+                                       std::unordered_map<Face*, Vertex*>& face_to_cents) {
     // dont delete anything. just add
     Vertex* v1 = he1->vertex;
     HalfEdge* he2 = he1->sym;
     Vertex* v2 = he2->vertex;
 
-    std::cout<<v1->pos.x<<", "<<v1->pos.y<<", "<<v1->pos.z<<std::endl;
-    std::cout<<v2->pos.x<<", "<<v2->pos.y<<", "<<v2->pos.z<<std::endl;
-    std::cout<<face_to_cents[he1->face]->pos.x<<", "<<face_to_cents[he1->face]->pos.y<<", "<<face_to_cents[he1->face]->pos.z<<std::endl;
-    std::cout<<face_to_cents[he2->face]->pos.x<<", "<<face_to_cents[he2->face]->pos.y<<", "<<face_to_cents[he2->face]->pos.z<<std::endl;
     uPtr<Vertex> v3 = mkU<Vertex>(0.25f*(v1->pos + v2->pos + face_to_cents[he1->face]->pos + face_to_cents[he2->face]->pos));
-    std::cout<<"adding smoothed midpoint" << v3->id << " at ";
-    std::cout<<v3->pos.x<<", "<<v3->pos.y<<", "<<v3->pos.z<<std::endl;
+
     uPtr<HalfEdge> he1b = mkU<HalfEdge>();
     uPtr<HalfEdge> he2b = mkU<HalfEdge>();
 
@@ -102,9 +97,6 @@ void Mesh::addSmoothedMidpoint(HalfEdge* he1,
     v1->edge = he1b.get();
     v2->edge = he2b.get();
     v3->edge = he2;
-
-    edges_pointing_to_midpoints.insert(he1);
-    edges_pointing_to_midpoints.insert(he2);
 
     this->edges.push_back(std::move(he1b));
     this->edges.push_back(std::move(he2b));
@@ -127,15 +119,14 @@ static std::vector<Face*> getOriginalFaces(const Mesh& m) {
     return originalFaces;
 }
 
-void Mesh::catmullClark() {
-    // for each face, compute centroids (vertices) and store in unorderedmap <Face*, Vertex*>
-    std::vector<Vertex*> originalVerts = getOriginalVertices(*this);
-    std::vector<HalfEdge*> originalEdges = getOriginalHalfEdges(*this);
-    std::vector<Face*> originalFaces = getOriginalFaces(*this);
-
-    LOG("computing centroids");
-    std::unordered_map<Face*, Vertex*> face_to_cents;
-    for (auto& f : this->getFaces()) {
+void Mesh::computeAndAddCentroids(Mesh& m,
+                                  std::unordered_map<Face*, Vertex*>& face_to_cents,
+                                  std::vector<Face*>& originalFaces) {
+    /*
+    In this function, we pass over every face, calculate the average of the vertices in that face,
+    and add the resulting centroid to the graph.
+    */
+    for (auto f : originalFaces) {
         glm::vec3 avg_pos = {0,0,0};
         int numSides = 0;
         auto cur = f->edge;
@@ -146,28 +137,37 @@ void Mesh::catmullClark() {
         } while (cur != f->edge);
         avg_pos /= numSides;
         uPtr<Vertex> centroid = mkU<Vertex>(avg_pos);
-        std::cout<<"adding centroid "<< centroid->id <<" at "<<centroid->pos.x<<", "<<centroid->pos.y<<", "<<centroid->pos.z<<std::endl;
 
-        face_to_cents[f.get()] = centroid.get();
-        this->vertices.push_back(std::move(centroid));
+        face_to_cents[f] = centroid.get();
+        m.vertices.push_back(std::move(centroid));
     }
+}
 
-    LOG("computing smooth midpoints");
-    std::vector<HalfEdge*> originalEdges;
-    for (auto& he : getEdges()) originalEdges.push_back(he.get());
-    // for each edge, compute smooth midpoint (vertex)
+void Mesh::addAllSmoothedMidpoints(Mesh& m,
+                                   std::unordered_map<Face*, Vertex*>& face_to_cents,
+                                   std::vector<HalfEdge*>& originalEdges) {
+    /*
+    In this function, we pass over all half edges, making sure to skip processing if the SYM has already been split.
+    We then split every edge, set the pointers, and add the new vertex and edges to the graph structure.
+    */
+
     std::unordered_set<HalfEdge*> already_split;
-    std::unordered_set<HalfEdge*> edges_pointing_to_midpoints;
+    // for each edge, compute smooth midpoint (vertex)
     for (HalfEdge* he : originalEdges) {
         if (already_split.count(he) != 0) continue;
         already_split.insert(he);
         already_split.insert(he->sym);
 
-        addSmoothedMidpoint(he, face_to_cents, edges_pointing_to_midpoints);
+        addSmoothedMidpoint(he, face_to_cents);
     }
+}
 
-    LOG("smoothing original vertices");
-    // smooth original vertices
+void Mesh::smoothAllVertices(Mesh& m,
+                             std::unordered_map<Face*, Vertex*>& face_to_cents,
+                             std::vector<Vertex*>& originalVerts) {
+    /*
+    In this function, we traverse through the vertices and compute the correct smoothed position.
+    */
     for (Vertex* vertex : originalVerts) {
         // get n by moving in a star around vertex
         auto cur = vertex->edge;
@@ -187,19 +187,20 @@ void Mesh::catmullClark() {
                       (frac*frac*sumCentroids);
         std::cout<<"changed vertex to "<<vertex->pos.x<<", "<<vertex->pos.y<<", "<<vertex->pos.z<<std::endl;;
     }
+}
 
-    LOG("quadrangulating face");
-    // for every face, quadrangulate
-    std::vector<Face*> originalFaces;
-    for (auto& f : this->faces) originalFaces.push_back(f.get());
+void Mesh::quadrangulateAllFaces(Mesh& m,
+                                 std::unordered_map<Face*, Vertex*>& face_to_cents,
+                                 std::vector<Face*>& originalFaces) {
+    /*
+    In this function, we traverse through the faces and quadrangulate.
+    We can collect all of the edges and
+    */
     for (auto origFace : originalFaces) {
-        // given: Face*, midpoints/set of halfedges that point to midpoints
-        // if the edge that face points to isn't going into a midpoint, reassign
-        // if (edges_pointing_to_midpoints.count(origFace->edge) == 0) {std::cout<<"chaggigg face edge"<<std::endl; origFace->edge = origFace->edge->next;}
 
         auto centroid = face_to_cents[origFace];
 
-        LOG("traversing edges");
+        // collect all of the original edges in the face
         std::vector<HalfEdge*> edges;
         auto c = origFace->edge;
         do {
@@ -209,7 +210,7 @@ void Mesh::catmullClark() {
         while(c!=origFace->edge);
         int n = edges.size();
 
-        LOG("making faces");
+        // create the n-1 new faces and store them in a vector.
         std::vector<Face*> newFaces = {origFace};
         for (int i = 1; i < n/2; i++) {
             uPtr<Face> newFace = mkU<Face>();
@@ -220,7 +221,10 @@ void Mesh::catmullClark() {
 
         std::vector<HalfEdge*> newEdges;
 
-        LOG("main");
+        /*
+        This is the main logic, where we can loop through the (now) outer edges of the face,
+        and create and assign the new inner edges by just indexing into the vectors we collected before.
+        */
         for (int i = 0; i < n; i = i+2) {
             LOG("subface " << i/2);
             uPtr<HalfEdge> a = mkU<HalfEdge>();
@@ -239,13 +243,15 @@ void Mesh::catmullClark() {
             prev->next = cur;
             cur->next = a.get();
 
-            auto newFace = newFaces[i/2]; std::cout<<"new face id is "<<newFace->id<<std::endl;
+            auto newFace = newFaces[i/2];
             a->face = newFace;
-            b->face = newFace;  // std::cout<<"changing newFace edge from "<<newFace->edge->id<<" to "<<b.get()->id<<std::endl;
+            b->face = newFace;
             cur->face = newFace;
             prev->face = newFace;
             newFace->edge = b.get();
 
+            // we can skip the first two vectors, as they'll be assigned in the last loop.
+            // each subface contains two outer edges and two new inner edges: prev->cur->a->b->prev.
             if (i>=2) {
                 HalfEdge* lastA = newEdges[i+1-3];
                 b->sym = lastA;
@@ -263,6 +269,33 @@ void Mesh::catmullClark() {
             this->edges.push_back(std::move(b));
         };
     }
+}
+
+void Mesh::catmullClark() {
+    /*
+    This function calls four helper functions that each independently perform a step of the Catmull-Clark algorithm.
+    In each helper is a more detailed comment to explain the implemented logic.
+    */
+    std::vector<Vertex*> originalVerts = getOriginalVertices(*this);
+    std::vector<HalfEdge*> originalEdges = getOriginalHalfEdges(*this);
+    std::vector<Face*> originalFaces = getOriginalFaces(*this);
+
+    // for each face, compute centroids (vertices) and store in an unorderedmap <Face*, Vertex*> to easily query later
+    std::unordered_map<Face*, Vertex*> face_to_cents;
+
+    LOG("computing centroids");
+    computeAndAddCentroids(*this, face_to_cents, originalFaces);
+
+    LOG("computing smooth midpoints");
+    addAllSmoothedMidpoints(*this, face_to_cents, originalEdges);
+
+    LOG("smoothing original vertices");
+    // smooth original vertices
+    smoothAllVertices(*this, face_to_cents, originalVerts);
+
+    LOG("quadrangulating face");
+    // for every face, quadrangulate
+    quadrangulateAllFaces(*this, face_to_cents, originalFaces);
 
 }
 
@@ -272,7 +305,8 @@ void Mesh::buildMesh(const std::vector<glm::vec3>& positions, const std::vector<
     this->vertices.clear();
     this->faces.clear();
     this->edges.clear();
-    // first fill out the vertices
+
+    // First, fill out the vertices
     for (const glm::vec3& pos : positions) {
         auto v = std::make_unique<Vertex>(pos);
         this->vertices.push_back(std::move(v));
@@ -281,7 +315,7 @@ void Mesh::buildMesh(const std::vector<glm::vec3>& positions, const std::vector<
     std::map<std::pair<int,int>, HalfEdge*> vertsToEdge;  // stores <source, dest> vertex : halfedge to make setting syms easy
     std::map<HalfEdge*, std::pair<int,int>> edgeToVerts;  // opposite
 
-    // next, go through the faceIndices and fill out faces and edges
+    // Next, go through the faceIndices and fill out faces and edges
     for (const auto& indices : faceIndices) {  // each indices is a vector of size n, the number of edges on that face
         const int n = indices.size();
 
@@ -315,7 +349,7 @@ void Mesh::buildMesh(const std::vector<glm::vec3>& positions, const std::vector<
         this->faces.push_back(std::move(f));
     }
 
-    // now point the syms
+    // Now point the syms
     for (auto& heUptr : this->edges) {
         HalfEdge* he = heUptr.get();
         auto [a,b] = edgeToVerts[he];
@@ -341,14 +375,20 @@ void Mesh::initializeAndBufferGeometryData() {
         // every vertex on this face will have the same normal, so calculate it now
         // we are assuming CCW vertex order, so cross product will always be out of face (+)
         // also assuming the mesh is well formed, so catmull clark wont result in 3 colinear vertices
+        // EXCEPT when we split an edge ourselves, so just move cur until this isn't the case
         glm::vec3 diff1 = (cur->vertex->pos - cur->next->vertex->pos);
         glm::vec3 diff2 = (cur->next->vertex->pos - cur->next->next->vertex->pos);
-        glm::vec3 face_normal = glm::normalize(glm::cross(diff1, diff2));
+        glm::vec3 face_normal = glm::cross(diff1, diff2);
+        while (glm::dot(face_normal, face_normal) < 1e-12f) {
+            cur = cur->next;
+            glm::vec3 diff1 = (cur->vertex->pos - cur->next->vertex->pos);
+            glm::vec3 diff2 = (cur->next->vertex->pos - cur->next->next->vertex->pos);
+            face_normal = glm::cross(diff1, diff2);
+        }
 
         int numVerts = 0;
         do {
             pos.push_back(cur->vertex->pos);
-            // LOG("pushing back color: " << f->color.r << " , " << f->color.g << " , " << f->color.b);
             col.push_back(f->color);
             nor.push_back(face_normal);
             numVerts++;

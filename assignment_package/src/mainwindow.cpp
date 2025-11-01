@@ -125,7 +125,6 @@ void MainWindow::on_actionQuit_triggered()
 void MainWindow::on_actionOpenOBJ_triggered()
 {
     LOG("opening new file triggered");
-
     resetAllWidgetValues();
     QString filename = QFileDialog::getOpenFileName(this, "Open .obj File", getCurrentPath());
     ui->mygl->loadOBJ(filename);  // pass it off to mygl
